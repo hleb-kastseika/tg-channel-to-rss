@@ -1,0 +1,37 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: "AWS Lambda function for converting of Telegram channel to RSS feed."
+
+Parameters:
+  ApiKey:
+    Description: "Secret key to access the API."
+    Type: String
+
+Resources:
+  TgChannelToRssFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: python3.9
+      Timeout: 30
+      MemorySize: 128
+      CodeUri: lambda
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          API_KEY: !Ref ApiKey
+      Events:
+        GetChannelAsRss:
+          Type: Api
+          Properties:
+            Path: /feed/{channel_name}
+            Method: get
+  LambdaFunctionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${TgChannelToRssFunction}"
+      RetentionInDays: 14
+
+Outputs:
+  TgChannelToRssApi:
+    Description: "API Gateway endpoint URL for TgChannelToRss function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/feed/"
