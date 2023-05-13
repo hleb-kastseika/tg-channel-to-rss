@@ -67,7 +67,7 @@ def get_item(div):
 
 def get_link(div):
     """Get link to the Telegram post."""
-    return div.select("a[href][class='tgme_widget_message_date']")[0].attrs["href"]
+    return div.select("a[href][class='tgme_widget_message_date']")[0].attrs["href"].replace("t.me", "t.me/s")
 
 
 def get_text(div, cut_to=0):
