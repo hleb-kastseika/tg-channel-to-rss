@@ -40,16 +40,20 @@ class ContentEncoded(Extension):
     """Adds <content:encoded> without relying on rfeed.Element."""
 
     def __init__(self, html: str):
+        """Wrap HTML content for the RSS content module."""
         self._html = f"<![CDATA[{html}]]>"
 
     def get_namespace(self):
+        """Return the RSS module namespace."""
         return ("content", "http://purl.org/rss/1.0/modules/content/")
 
     def get_elements(self):
+        """Return raw XML string for <content:encoded>."""
         return [f"<content:encoded>{self._html}</content:encoded>"]
 
 
 def lambda_handler(event, _):
+    """AWS Lambda entrypoint."""
     if not event.get("queryStringParameters") or event["queryStringParameters"].get("key") != os.environ["API_KEY"]:
         return {"statusCode": 401, "body": "Unauthorized"}
 
@@ -69,6 +73,7 @@ def lambda_handler(event, _):
 
 
 def get_rss_feed(channel_name: str) -> str:
+    """Build the RSS XML for a public Telegram channel."""
     url = f"https://t.me/s/{channel_name}"
     doc = get_doc(url)
 
@@ -93,6 +98,7 @@ def get_rss_feed(channel_name: str) -> str:
 
 
 def get_doc(url: str) -> BeautifulSoup:
+    """Fetch and parse the Telegram channel HTML page."""
     res = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
     if res.status_code != 200:
         raise Exception("Telegram channel not found")
@@ -101,6 +107,7 @@ def get_doc(url: str) -> BeautifulSoup:
 
 
 def build_item(div, channel_name: str) -> Optional[Item]:
+    """Convert a Telegram message bubble <div> into an RSS Item."""
     link = get_link(div)
     if not link:
         return None
@@ -112,7 +119,6 @@ def build_item(div, channel_name: str) -> Optional[Item]:
     first_para_html = sanitize_keep_links(raw_html) or f"<p>{autolink_plain(get_plain_text(div))}</p>"
 
     photos = get_photo_assets(div)
-
     media_html = "".join(f'<p><img src="{escape_attr(u)}" referrerpolicy="no-referrer"/></p>' for u in photos)
 
     description_html = first_para_html + media_html
@@ -140,6 +146,7 @@ def build_item(div, channel_name: str) -> Optional[Item]:
 
 
 def get_link(div) -> Optional[str]:
+    """Extract the canonical link to the Telegram post."""
     a = div.select_one("a.tgme_widget_message_date[href]")
     if not a:
         return None
@@ -148,7 +155,7 @@ def get_link(div) -> Optional[str]:
 
 
 def get_html(div) -> str:
-    """Return Telegram post HTML (keeps markup)."""
+    """Return Telegram post HTML."""
     el = div.select_one("div.tgme_widget_message_text")
     if not el:
         return ""
@@ -158,6 +165,7 @@ def get_html(div) -> str:
 
 
 def get_plain_text(div) -> str:
+    """Return plain text content of the message."""
     el = div.select_one("div.tgme_widget_message_text")
     if not el:
         return ""
@@ -166,10 +174,7 @@ def get_plain_text(div) -> str:
 
 
 def sanitize_keep_links(html: str) -> str:
-    """
-    Keep only <a> and <br> from Telegram HTML; unwrap everything else.
-    Returns a single <p>…</p> block.
-    """
+    """Produce a safe first paragraph that preserves only links and line breaks."""
     if not html:
         return ""
 
@@ -194,10 +199,11 @@ def sanitize_keep_links(html: str) -> str:
 
 
 def get_photo_assets(div) -> List[str]:
-    """Collect only photo URLs filtering out emoji/reaction images."""
+    """Collect photo URLs while filtering out emoji/reaction images."""
     photos: List[str] = []
 
     def is_reaction_or_emoji(node) -> bool:
+        """Heuristically detect reaction/emoji nodes to skip their images."""
         for parent in node.parents:
             cls = " ".join(parent.get("class", []))
             if "tgme_widget_message_reactions" in cls or "tgme_widget_message_reactions_small" in cls:
@@ -249,6 +255,7 @@ def get_photo_assets(div) -> List[str]:
 
 
 def absolutize_links(html: str, base: str) -> str:
+    """Convert relative href/src values to absolute URLs against a base."""
     html = re.sub(r'href="(/[^"]+)"', lambda m: f'href="{urljoin(base, m.group(1))}"', html)
     html = re.sub(r"href='(/[^']+)'", lambda m: f"href='{urljoin(base, m.group(1))}'", html)
     html = re.sub(r'src="(/[^"]+)"', lambda m: f'src="{urljoin(base, m.group(1))}"', html)
@@ -257,12 +264,15 @@ def absolutize_links(html: str, base: str) -> str:
 
 
 def to_plain_text(html: str) -> str:
+    """Strip an HTML fragment down to readable plain text."""
     if not html:
         return ""
+
     return BeautifulSoup(html, "lxml").get_text(" ", strip=True)
 
 
 def guess_mime(url: str) -> str:
+    """Best-effort MIME type inference from URL/file extension."""
     u = url.lower()
     if u.endswith((".jpg", ".jpeg")):
         return "image/jpeg"
@@ -276,4 +286,5 @@ def guess_mime(url: str) -> str:
 
 
 def escape_attr(s: str) -> str:
+    """Escape double quotes in attribute values for safe HTML attribute usage."""
     return s.replace('"', "&quot;")
