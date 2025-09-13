@@ -124,18 +124,11 @@ def build_item(div, channel_name: str) -> Optional[Item]:
     description_html = first_para_html + media_html
     full_html = (raw_html + media_html) if (raw_html or media_html) else link
 
-    title_text = to_plain_text(raw_html).strip()
-    if not title_text:
-        title_text = f"New post in channel @{channel_name}"
-
-    if len(title_text) > 80:
-        title_text = title_text[:77] + "..."
-
     enclosure = Enclosure(photos[0], 0, guess_mime(photos[0])) if photos else None
     guid = Guid(link, isPermaLink=True)
 
     return Item(
-        title=title_text,
+        title=f"New post in channel @{channel_name}",
         link=link,
         description=description_html,
         pubDate=pub,
