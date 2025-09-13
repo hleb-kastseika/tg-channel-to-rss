@@ -1,4 +1,4 @@
-beautifulsoup4==4.12.2
-lxml==4.9.2
-requests==2.30.0
+beautifulsoup4==4.13.5
+lxml==6.0.1
+requests==2.32.5
 rfeed==1.1.1
